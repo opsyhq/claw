@@ -39,16 +39,24 @@ export class SSHTransport implements Transport {
       });
     });
 
+    let stderrOutput = "";
+
     this.channel.on("data", (data: Buffer) => {
       this.buffer += data.toString();
       this.processBuffer();
     });
 
+    this.channel.stderr.on("data", (data: Buffer) => {
+      stderrOutput += data.toString();
+    });
+
     this.channel.on("close", () => {
       this.connected = false;
-      // Reject all pending requests
+      const errMsg = stderrOutput.trim()
+        ? `SSH channel closed: ${stderrOutput.trim()}`
+        : "SSH channel closed";
       for (const [, req] of this.pending) {
-        req.reject(new Error("SSH channel closed"));
+        req.reject(new Error(errMsg));
       }
       this.pending.clear();
     });

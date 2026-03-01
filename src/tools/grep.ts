@@ -14,7 +14,13 @@ const MAX_RESULTS = 1000;
 export async function grep(params: GrepParams): Promise<ToolResult> {
   try {
     const searchPath = params.path ?? process.cwd();
-    const regex = new RegExp(params.pattern);
+
+    let regex: RegExp;
+    try {
+      regex = new RegExp(params.pattern);
+    } catch (err: any) {
+      return { content: `Invalid regex: ${err.message}`, isError: true };
+    }
 
     // Find files to search
     const globPattern = params.include ?? "**/*";

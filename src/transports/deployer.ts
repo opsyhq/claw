@@ -1,16 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import type { Client, SFTPWrapper } from "ssh2";
 
 const REMOTE_DIR = ".claw";
-const REMOTE_BINARY = `${REMOTE_DIR}/pincer`;
-const LOCAL_PINCER_DIR = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
-  "..",
-  "..",
-  "pincer-bin",
-);
+const REMOTE_BINARY_REL = `${REMOTE_DIR}/pincer`;
+
+function findPincerBinDir(): string {
+  // Walk up from this file's location to find pincer-bin/
+  // Works both in dev (src/) and built (dist/) contexts
+  let dir = path.dirname(new URL(import.meta.url).pathname);
+  for (let i = 0; i < 5; i++) {
+    const candidate = path.join(dir, "pincer-bin");
+    if (fs.existsSync(candidate)) return candidate;
+    dir = path.dirname(dir);
+  }
+  // Fallback: look relative to cwd
+  const cwdCandidate = path.join(process.cwd(), "pincer-bin");
+  if (fs.existsSync(cwdCandidate)) return cwdCandidate;
+  throw new Error("Cannot find pincer-bin/ directory");
+}
 
 function getPincerPath(arch: string): string {
   const archMap: Record<string, string> = {
@@ -19,25 +27,29 @@ function getPincerPath(arch: string): string {
     arm64: "arm64",
   };
   const goArch = archMap[arch] ?? "amd64";
-  return path.join(LOCAL_PINCER_DIR, `pincer-linux-${goArch}`);
+  return path.join(findPincerBinDir(), `pincer-linux-${goArch}`);
 }
 
-async function execCommand(
-  conn: Client,
-  command: string,
-): Promise<string> {
+async function execCommand(conn: Client, command: string): Promise<string> {
   return new Promise((resolve, reject) => {
     conn.exec(command, (err, stream) => {
       if (err) return reject(err);
 
       let output = "";
+      let stderr = "";
       stream.on("data", (data: Buffer) => {
         output += data.toString();
       });
       stream.stderr.on("data", (data: Buffer) => {
-        output += data.toString();
+        stderr += data.toString();
       });
-      stream.on("close", () => resolve(output.trim()));
+      stream.on("close", (code: number) => {
+        if (code !== 0 && !output.trim()) {
+          reject(new Error(`Command failed (exit ${code}): ${stderr.trim()}`));
+        } else {
+          resolve(output.trim());
+        }
+      });
     });
   });
 }
@@ -52,18 +64,23 @@ function getSftp(conn: Client): Promise<SFTPWrapper> {
 }
 
 export async function ensurePincer(conn: Client): Promise<string> {
-  // Detect remote architecture
-  const arch = await execCommand(conn, "uname -m");
+  // Detect remote home directory and architecture
+  const [remoteHome, arch] = await Promise.all([
+    execCommand(conn, "echo $HOME"),
+    execCommand(conn, "uname -m"),
+  ]);
+
+  const remoteBinaryPath = `${remoteHome}/${REMOTE_BINARY_REL}`;
 
   // Check if pincer already exists and get its version
   let remoteVersion = "";
   try {
-    remoteVersion = await execCommand(conn, `~/${REMOTE_BINARY} --version`);
+    remoteVersion = await execCommand(conn, `${remoteBinaryPath} --version`);
   } catch {
     // pincer doesn't exist yet
   }
 
-  // Check local pincer version
+  // Check local pincer binary exists
   const localPath = getPincerPath(arch);
   if (!fs.existsSync(localPath)) {
     throw new Error(
@@ -71,34 +88,28 @@ export async function ensurePincer(conn: Client): Promise<string> {
     );
   }
 
-  // TODO: Compare versions properly. For now, deploy if missing.
+  // Skip deploy if already present (TODO: version comparison)
   if (remoteVersion) {
-    return `~/${REMOTE_BINARY}`;
+    return remoteBinaryPath;
   }
 
-  // Deploy pincer
+  // Create remote directory
+  await execCommand(conn, `mkdir -p ${remoteHome}/${REMOTE_DIR}`);
+
+  // Upload binary via SFTP
   const sftp = await getSftp(conn);
 
-  // Create remote directory
-  await new Promise<void>((resolve) => {
-    sftp.mkdir(`${os.homedir().replace(os.homedir(), "")}${REMOTE_DIR}`, () => {
-      // Ignore error if dir exists
-      resolve();
-    });
-  });
-
-  await execCommand(conn, `mkdir -p ~/${REMOTE_DIR}`);
-
-  // Upload binary
   await new Promise<void>((resolve, reject) => {
-    sftp.fastPut(localPath, REMOTE_BINARY, (err) => {
-      if (err) reject(err);
+    sftp.fastPut(localPath, remoteBinaryPath, (err) => {
+      if (err) reject(new Error(`SFTP upload failed: ${err.message}`));
       else resolve();
     });
   });
 
-  // Make executable
-  await execCommand(conn, `chmod +x ~/${REMOTE_BINARY}`);
+  sftp.end();
 
-  return `~/${REMOTE_BINARY}`;
+  // Make executable
+  await execCommand(conn, `chmod +x ${remoteBinaryPath}`);
+
+  return remoteBinaryPath;
 }
