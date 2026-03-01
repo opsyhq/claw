@@ -1,6 +1,6 @@
 {
   "name": "@opsyhq/claw",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "MCP server that lets AI agents work across remote machines over SSH",
   "type": "module",
   "bin": {
