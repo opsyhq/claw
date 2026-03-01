@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build-pincer:
@@ -54,6 +55,9 @@ jobs:
   publish-npm:
     needs: release
     runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -64,6 +68,6 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm publish --access public
+      - run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
