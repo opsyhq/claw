@@ -28,9 +28,9 @@ export function createServer(
 
   server.tool(
     "claw_machines",
-    "Manage machines. Actions: list | add --name --host [--user] [--port] | remove --name | update --name [--host] [--user] [--port]",
+    "Manage machines. Actions: list | add --name --host [--user] [--port] [--identityFile] | remove --name | update --name [--host] [--user] [--port] [--identityFile]",
     machinesSchema,
-    async ({ action, name, host, user, port }) => {
+    async ({ action, name, host, user, port, identityFile }) => {
       auditLog("local", "claw_machines", { action, name });
 
       if (action === "list") {
@@ -72,9 +72,9 @@ export function createServer(
             isError: true,
           };
         }
-        const machine = { name, transport: "ssh" as const, host, user, port };
+        const machine = { name, transport: "ssh" as const, host, user, port, identityFile };
         router.addMachine(machine);
-        appendMachine(name, { transport: "ssh", host, user, port });
+        appendMachine(name, { transport: "ssh", host, user, port, identityFile });
         return {
           content: [
             {
@@ -113,9 +113,10 @@ export function createServer(
           ...(host !== undefined && { host }),
           ...(user !== undefined && { user }),
           ...(port !== undefined && { port }),
+          ...(identityFile !== undefined && { identityFile }),
         };
         router.addMachine(updated);
-        appendMachine(name, { transport: updated.transport, host: updated.host, user: updated.user, port: updated.port });
+        appendMachine(name, { transport: updated.transport, host: updated.host, user: updated.user, port: updated.port, identityFile: updated.identityFile });
         return {
           content: [
             { type: "text" as const, text: `Updated machine "${name}".` },

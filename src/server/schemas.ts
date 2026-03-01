@@ -69,4 +69,8 @@ export const machinesSchema = {
     .describe("SSH hostname or IP address (required for add)"),
   user: z.string().optional().describe("SSH user (default: current user)"),
   port: z.number().optional().describe("SSH port (default: 22)"),
+  identityFile: z
+    .string()
+    .optional()
+    .describe("Path to SSH private key file (e.g. ~/.ssh/id_rsa). Defaults to ~/.ssh/id_ed25519, id_rsa, or id_ecdsa"),
 };

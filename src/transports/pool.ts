@@ -44,7 +44,8 @@ export function getConnection(machine: Machine): Promise<PooledConnection> {
     // Try to use identity file from machine config or defaults
     if (machine.identityFile) {
       try {
-        config.privateKey = fs.readFileSync(machine.identityFile);
+        const keyPath = machine.identityFile.replace(/^~(?=$|\/)/, os.homedir());
+        config.privateKey = fs.readFileSync(keyPath);
       } catch {
         // Fall through to agent
       }
