@@ -23,7 +23,7 @@ export function createServer(
 
   const server = new McpServer({
     name: "claw",
-    version: "0.1.4",
+    version: "0.1.5",
   });
 
   server.tool(
