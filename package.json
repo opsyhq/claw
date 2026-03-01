@@ -1,0 +1,57 @@
+{
+  "name": "@opsyhq/claw",
+  "version": "0.1.0",
+  "description": "MCP server that lets AI agents work across remote machines over SSH",
+  "type": "module",
+  "bin": {
+    "claw": "./dist/bin/claw.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "pincer-bin"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "build-pincer": "bash scripts/build-pincer.sh"
+  },
+  "keywords": [
+    "mcp",
+    "ssh",
+    "remote",
+    "ai",
+    "agent",
+    "claude",
+    "cursor"
+  ],
+  "author": "OpsyHQ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opsyhq/claw"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "commander": "^13.1.0",
+    "glob": "^11.0.1",
+    "ssh-config": "^5.0.3",
+    "ssh2": "^1.16.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/ssh2": "^1.15.4",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.2"
+  }
+}
