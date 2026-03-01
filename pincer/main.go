@@ -9,7 +9,7 @@ import (
 	"github.com/opsyhq/claw/pincer/rpc"
 )
 
-const Version = "0.1.3"
+const Version = "0.1.4"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
