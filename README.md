@@ -2,17 +2,15 @@
   <h1 align="center">🦞 Claw</h1>
   <p align="center"><strong>Your agent's claw on every machine.</strong></p>
   <p align="center">
-    An MCP server that lets any AI agent work across remote machines —<br/>
-    bash, read, write, edit, grep, and glob — over SSH.
-  </p>
-  <p align="center">
-    Built by <a href="https://github.com/opsyhq">OpsyHQ</a>
+    Give any AI agent bash, read, write, edit, grep, and glob<br/>
+    on any machine you can SSH into.
   </p>
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@opsyhq/claw"><img src="https://img.shields.io/npm/v/@opsyhq/claw" alt="npm version"></a>
   <a href="https://github.com/opsyhq/claw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/opsyhq/claw" alt="license"></a>
+  <a href="https://github.com/opsyhq/claw/actions/workflows/release.yml"><img src="https://github.com/opsyhq/claw/actions/workflows/release.yml/badge.svg" alt="build"></a>
 </p>
 
 <p align="center">
@@ -20,21 +18,14 @@
   <a href="#how-it-works">How it works</a> ·
   <a href="#tools">Tools</a> ·
   <a href="#configuration">Configuration</a> ·
-  <a href="#cli-reference">CLI</a> ·
-  <a href="#development">Development</a>
+  <a href="#cli-reference">CLI</a>
 </p>
-
-```bash
-npm install -g @opsyhq/claw
-```
 
 ---
 
-## Why
-
 AI agents can write code, but they're stuck on one machine. They can't check logs on prod, grep for errors across services, or edit a config on staging.
 
-Claw gives your agent the same tools it already knows — bash, read, write, edit, grep, glob — on any machine you can SSH into.
+**Claw is an [MCP server](https://modelcontextprotocol.io) that extends your agent's tools to any remote machine.** 9 tools. Any host you can SSH into. Zero config on the remote.
 
 ```
 You: "Check why the API is returning 500s on prod, look at the logs, and fix the nginx config"
@@ -48,39 +39,31 @@ Agent: connects to prod-api via SSH
 Done. Across machines. Autonomously.
 ```
 
+> **No ports to open. No daemons. No root required.**
+> Claw uses your SSH keys, deploys a tiny binary on first connect, and cleans up after itself.
+
 ## Quickstart
 
-### 1. Add your machines
+### 1. Install
 
 ```bash
-# Import from your SSH config
-npx -y @opsyhq/claw init --from-ssh
-
-# Or add manually
-npx -y @opsyhq/claw add prod-api --ssh user@prod-api.example.com
-npx -y @opsyhq/claw add staging --ssh user@staging.example.com
-npx -y @opsyhq/claw add local --local
+npx -y @opsyhq/claw serve
+# or install globally
+npm install -g @opsyhq/claw
 ```
 
 ### 2. Connect to your agent
 
-<details>
+<details open>
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-npx -y @opsyhq/claw install claude-code
+claude mcp add claw -- npx -y @opsyhq/claw serve
 ```
 
-Or add manually to `.claude/settings.json`:
-```json
-{
-  "mcpServers": {
-    "claw": {
-      "command": "npx",
-      "args": ["-y", "@opsyhq/claw", "serve"]
-    }
-  }
-}
+Or run the installer:
+```bash
+npx -y @opsyhq/claw install claude-code
 ```
 </details>
 
@@ -117,34 +100,28 @@ Add to `claude_desktop_config.json`:
 </details>
 
 <details>
-<summary><strong>OpenClaw</strong></summary>
-
-Add to `openclaw.json`:
-```json
-{
-  "mcp": {
-    "servers": [
-      {
-        "name": "claw",
-        "command": "npx",
-        "args": ["-y", "@opsyhq/claw", "serve"]
-      }
-    ]
-  }
-}
-```
-</details>
-
-<details>
 <summary><strong>Any MCP client</strong></summary>
 
 ```bash
 npx -y @opsyhq/claw serve
-# Starts MCP server on stdio
+# Speaks MCP over stdio
 ```
 </details>
 
-### 3. Go
+### 3. Add your machines
+
+The agent can add machines itself via the `claw_add_machine` tool, or you can set them up ahead of time:
+
+```bash
+# Import from your SSH config
+claw init --from-ssh
+
+# Or add manually
+claw add prod-api --ssh deploy@prod-api.example.com
+claw add staging --ssh deploy@staging.example.com
+```
+
+### 4. Go
 
 Talk to your agent. It now has claws on every machine you configured.
 
@@ -179,49 +156,37 @@ Talk to your agent. It now has claws on every machine you configured.
           └──────┘ └──────┘
 ```
 
-On first connect, Claw deploys a small static binary (`pincer`) to `~/.claw/pincer` on the remote host. This binary speaks JSON-RPC over stdin/stdout and handles all tool execution — structured file editing, safe command handling, grep with regex support.
+On first connect, Claw auto-deploys a small static binary ([pincer](pincer/)) to `~/.claw/pincer` on the remote host. Pincer speaks JSON-RPC over stdin/stdout and handles all tool execution — structured file editing, safe command handling, grep with regex support.
 
-Connections are persistent. No reconnecting per command.
-
-No ports to open. No daemons. No root required.
+Connections are persistent and pooled. No reconnecting per command.
 
 ## Tools
 
-Claw exposes 8 MCP tools. The agent discovers machines with `claw_list_machines`, then targets any machine by name.
+Claw exposes 9 MCP tools. These match the tools agents already know from local development (Claude Code's Read/Write/Edit/Bash/Grep/Glob/LS) — just extended to remote machines.
 
-These match the tools agents already know from local development (Claude Code's Read/Write/Edit/Bash/Grep/Glob/LS) — just extended to remote machines.
+| Tool | Description |
+|------|-------------|
+| **claw_list_machines** | Discover available machines and their status |
+| **claw_add_machine** | Add a new SSH machine on the fly |
+| **claw_bash** | Run a shell command |
+| **claw_read** | Read a file with optional line range |
+| **claw_write** | Create or overwrite a file |
+| **claw_edit** | Find-and-replace in a file |
+| **claw_grep** | Search file contents with regex |
+| **claw_glob** | Find files by pattern |
+| **claw_ls** | List directory contents |
 
-| Tool | What it does | Example |
-|------|-------------|---------|
-| **claw_list_machines** | Discover available machines | `claw_list_machines()` |
-| **claw_bash** | Run a shell command | `claw_bash(host: "prod", command: "docker ps")` |
-| **claw_read** | Read a file (with optional line range) | `claw_read(host: "prod", path: "/var/log/app.log", offset: 0, limit: 100)` |
-| **claw_write** | Create or overwrite a file | `claw_write(host: "staging", path: "/app/config.yaml", content: "...")` |
-| **claw_edit** | Find-and-replace in a file | `claw_edit(host: "staging", path: "/app/config.yaml", old_string: "port: 80", new_string: "port: 8080")` |
-| **claw_grep** | Search file contents with regex | `claw_grep(host: "prod", pattern: "error\|timeout", path: "/var/log", include: "*.log")` |
-| **claw_glob** | Find files by pattern | `claw_glob(host: "prod", pattern: "/app/src/**/*.ts")` |
-| **claw_ls** | List directory contents | `claw_ls(host: "staging", path: "/app")` |
+Every tool takes a `host` parameter — the machine name to target.
 
-### Discovery
-
-The agent's first call is typically `claw_list_machines`:
-
-```json
-→ claw_list_machines()
-← [
-    { "name": "prod-api", "transport": "ssh", "host": "prod-api.example.com", "status": "available" },
-    { "name": "staging", "transport": "ssh", "host": "staging.example.com", "status": "connected" },
-    { "name": "local", "transport": "local", "status": "connected" }
-  ]
 ```
-
-From there, the agent knows what's available and can target any machine by name in subsequent tool calls.
+claw_bash(host: "prod-api", command: "docker ps")
+claw_grep(host: "prod-api", pattern: "error|timeout", path: "/var/log", include: "*.log")
+claw_edit(host: "staging", path: "/app/config.yaml", old_string: "port: 80", new_string: "port: 8080")
+```
 
 ## Configuration
 
-### Global config
-
-`~/.config/claw/machines.yaml`
+### Global config — `~/.config/claw/machines.yaml`
 
 ```yaml
 machines:
@@ -241,7 +206,7 @@ machines:
 
 SSH transport uses your existing `~/.ssh/config` automatically — keys, ports, jump hosts all just work.
 
-### Project config
+### Project config — `claw.yaml`
 
 Drop a `claw.yaml` in your project root:
 
@@ -261,87 +226,68 @@ Commit this to your repo. Your whole team gets the same machine setup, each usin
 ## Security
 
 - **Your existing access** — Claw uses your SSH keys. It can only reach what you already can.
-- **No open ports** — All connections are outbound from your machine.
+- **No open ports** — All connections are outbound SSH from your machine.
 - **No persistence** — The remote binary only runs during your session.
 - **Audit log** — Every tool call is logged to `~/.config/claw/logs/`.
-- **Want guardrails?** — For approval workflows and policy enforcement on remote operations, check out [Opsy](https://github.com/opsyhq/opsy).
+- **Want guardrails?** — For approval workflows and policy enforcement on remote operations, check out [Opsy](https://opsy.sh).
 
 ## CLI Reference
 
 ```bash
-# Start the MCP server (stdio transport)
-claw serve
-
-# Import machines from ~/.ssh/config
-claw init --from-ssh
-
-# Add a remote machine
-claw add prod-api --ssh deploy@prod-api.example.com
-
-# Add the local machine
-claw add local --local
-
-# Install into Claude Code (~/.claude/settings.json)
-claw install claude-code
-
-# Install into Cursor (.cursor/mcp.json)
-claw install cursor
-```
-
-## Project Structure
-
-```
-claw/
-├── bin/claw.ts                # CLI entrypoint
-├── src/
-│   ├── cli/                   # CLI commands (serve, init, add, install)
-│   ├── config/                # YAML config loading + SSH config parser
-│   ├── server/                # MCP server, tool schemas, router
-│   ├── tools/                 # Local tool implementations (bash, read, write, edit, grep, glob, ls)
-│   ├── transports/            # Transport layer (local, SSH, connection pool, deployer)
-│   └── logging/               # Audit log
-├── pincer/                    # Go binary deployed to remote hosts
-│   ├── main.go                # JSON-RPC stdin/stdout server
-│   ├── rpc/                   # Request dispatcher
-│   └── tools/                 # Tool implementations in Go
-├── scripts/build-pincer.sh    # Cross-compile pincer for linux/amd64+arm64
-└── pincer-bin/                # Local dev binaries (production downloads from GitHub Releases)
-```
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Type-check without emitting
-npm run typecheck
-
-# Build pincer binaries (requires Go)
-npm run build-pincer
-
-# Watch mode
-npm run dev
+claw serve                # Start MCP server (stdio)
+claw init --from-ssh      # Import machines from ~/.ssh/config
+claw add <name> --ssh user@host   # Add a remote machine
+claw add <name> --local           # Add local machine
+claw install claude-code  # Write MCP config for Claude Code
+claw install cursor       # Write MCP config for Cursor
 ```
 
 ## Roadmap
 
 - [x] SSH transport
 - [x] Local transport
+- [x] Runtime binary download from GitHub Releases
+- [x] npm trusted publishing (OIDC)
 - [ ] Docker transport
 - [ ] Kubernetes transport
 - [ ] AWS SSM transport
-- [ ] Companion Agent Skill
+
+## Contributing
+
+PRs welcome. See the [development guide](#development) to get started.
+
+<details>
+<summary><strong>Development</strong></summary>
+
+```bash
+npm install         # Install dependencies
+npm run build       # Build TypeScript
+npm run typecheck   # Type-check without emitting
+npm run build-pincer # Cross-compile pincer (requires Go)
+npm run dev         # Watch mode
+```
+
+**Project structure:**
+```
+claw/
+├── bin/claw.ts              # CLI entrypoint
+├── src/
+│   ├── cli/                 # CLI commands (serve, init, add, install)
+│   ├── config/              # YAML config loading + SSH config parser
+│   ├── server/              # MCP server, tool schemas, router
+│   ├── tools/               # Local tool implementations
+│   ├── transports/          # Transport layer (local, SSH, pool, deployer)
+│   └── logging/             # Audit log
+├── pincer/                  # Go binary deployed to remote hosts
+│   ├── main.go              # JSON-RPC stdin/stdout server
+│   ├── rpc/                 # Request dispatcher
+│   └── tools/               # Tool implementations in Go
+└── scripts/build-pincer.sh  # Cross-compile for linux/amd64+arm64
+```
+</details>
 
 ---
 
 <p align="center">
-  <a href="https://github.com/opsyhq"><strong>OpsyHQ</strong></a> · Your agent's claw on every machine. 🦞
+  Built by <a href="https://github.com/opsyhq"><strong>OpsyHQ</strong></a> · MIT License
 </p>
-
-## License
-
-MIT
