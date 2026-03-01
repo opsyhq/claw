@@ -63,15 +63,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
 
       - run: npm ci
       - run: npm run build
 
       # Uses npm trusted publishing (OIDC) — no token needed.
-      # First publish requires NPM_TOKEN secret as fallback since
-      # trusted publishing can only be configured after the package exists.
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # NODE_AUTH_TOKEN must NOT be set, otherwise npm uses it instead of OIDC.
+      - run: npm publish --access public

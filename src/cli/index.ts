@@ -7,7 +7,7 @@ import { registerInstall } from "./install.js";
 export const cli = new Command()
   .name("claw")
   .description("MCP server for remote machine access over SSH")
-  .version("0.1.1");
+  .version("0.1.2");
 
 registerServe(cli);
 registerInit(cli);
