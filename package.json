@@ -15,8 +15,7 @@
     }
   },
   "files": [
-    "dist",
-    "pincer-bin"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",

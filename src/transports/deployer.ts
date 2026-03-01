@@ -1,33 +1,82 @@
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import { pipeline } from "node:stream/promises";
 import type { Client, SFTPWrapper } from "ssh2";
 
+const VERSION = "0.1.0";
 const REMOTE_DIR = ".claw";
 const REMOTE_BINARY_REL = `${REMOTE_DIR}/pincer`;
+const RELEASE_URL_BASE = "https://github.com/opsyhq/claw/releases/download";
+const CACHE_DIR = path.join(os.homedir(), ".config", "claw", "bin");
 
-function findPincerBinDir(): string {
-  // Walk up from this file's location to find pincer-bin/
-  // Works both in dev (src/) and built (dist/) contexts
-  let dir = path.dirname(new URL(import.meta.url).pathname);
-  for (let i = 0; i < 5; i++) {
-    const candidate = path.join(dir, "pincer-bin");
-    if (fs.existsSync(candidate)) return candidate;
-    dir = path.dirname(dir);
-  }
-  // Fallback: look relative to cwd
-  const cwdCandidate = path.join(process.cwd(), "pincer-bin");
-  if (fs.existsSync(cwdCandidate)) return cwdCandidate;
-  throw new Error("Cannot find pincer-bin/ directory");
-}
-
-function getPincerPath(arch: string): string {
+function getArchName(unameMArch: string): string {
   const archMap: Record<string, string> = {
     x86_64: "amd64",
     aarch64: "arm64",
     arm64: "arm64",
   };
-  const goArch = archMap[arch] ?? "amd64";
-  return path.join(findPincerBinDir(), `pincer-linux-${goArch}`);
+  return archMap[unameMArch] ?? "amd64";
+}
+
+function getCachedPath(goArch: string): string {
+  return path.join(CACHE_DIR, `pincer-linux-${goArch}-${VERSION}`);
+}
+
+function getDownloadUrl(goArch: string): string {
+  return `${RELEASE_URL_BASE}/v${VERSION}/pincer-linux-${goArch}`;
+}
+
+function getLocalDevPath(goArch: string): string | null {
+  // Check for locally-built binary (development use)
+  const candidates = [
+    path.join(process.cwd(), "pincer-bin", `pincer-linux-${goArch}`),
+  ];
+
+  // Walk up from this file's location
+  let dir = path.dirname(new URL(import.meta.url).pathname);
+  for (let i = 0; i < 5; i++) {
+    candidates.push(path.join(dir, "pincer-bin", `pincer-linux-${goArch}`));
+    dir = path.dirname(dir);
+  }
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+async function downloadPincer(goArch: string): Promise<string> {
+  const cached = getCachedPath(goArch);
+  if (fs.existsSync(cached)) return cached;
+
+  const url = getDownloadUrl(goArch);
+  const res = await fetch(url, { redirect: "follow" });
+
+  if (!res.ok || !res.body) {
+    throw new Error(
+      `Failed to download pincer from ${url}: ${res.status} ${res.statusText}`,
+    );
+  }
+
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+
+  const tmpPath = `${cached}.tmp`;
+  const fileStream = fs.createWriteStream(tmpPath);
+  await pipeline(res.body as any, fileStream);
+  fs.chmodSync(tmpPath, 0o755);
+  fs.renameSync(tmpPath, cached);
+
+  return cached;
+}
+
+async function resolvePincerBinary(goArch: string): Promise<string> {
+  // 1. Check local dev build first
+  const localPath = getLocalDevPath(goArch);
+  if (localPath) return localPath;
+
+  // 2. Check cache / download from GitHub Releases
+  return downloadPincer(goArch);
 }
 
 async function execCommand(conn: Client, command: string): Promise<string> {
@@ -70,28 +119,24 @@ export async function ensurePincer(conn: Client): Promise<string> {
     execCommand(conn, "uname -m"),
   ]);
 
+  const goArch = getArchName(arch);
   const remoteBinaryPath = `${remoteHome}/${REMOTE_BINARY_REL}`;
 
-  // Check if pincer already exists and get its version
-  let remoteVersion = "";
+  // Check if pincer already exists with correct version
   try {
-    remoteVersion = await execCommand(conn, `${remoteBinaryPath} --version`);
+    const remoteVersion = await execCommand(
+      conn,
+      `${remoteBinaryPath} --version`,
+    );
+    if (remoteVersion === VERSION) {
+      return remoteBinaryPath;
+    }
   } catch {
     // pincer doesn't exist yet
   }
 
-  // Check local pincer binary exists
-  const localPath = getPincerPath(arch);
-  if (!fs.existsSync(localPath)) {
-    throw new Error(
-      `Pincer binary not found at ${localPath}. Run 'npm run build-pincer' first.`,
-    );
-  }
-
-  // Skip deploy if already present (TODO: version comparison)
-  if (remoteVersion) {
-    return remoteBinaryPath;
-  }
+  // Resolve local binary (dev build or download from GitHub Releases)
+  const localPath = await resolvePincerBinary(goArch);
 
   // Create remote directory
   await execCommand(conn, `mkdir -p ${remoteHome}/${REMOTE_DIR}`);
