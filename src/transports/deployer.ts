@@ -4,7 +4,7 @@ import os from "node:os";
 import { pipeline } from "node:stream/promises";
 import type { Client, SFTPWrapper } from "ssh2";
 
-const VERSION = "0.1.5";
+const VERSION = "0.1.6";
 const REMOTE_DIR = ".claw";
 const REMOTE_BINARY_REL = `${REMOTE_DIR}/pincer`;
 const RELEASE_URL_BASE = "https://github.com/opsyhq/claw/releases/download";
