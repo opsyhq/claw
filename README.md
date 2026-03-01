@@ -14,7 +14,9 @@
   <a href="#quickstart">Quickstart</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#tools">Tools</a> ·
-  <a href="#configuration">Configuration</a>
+  <a href="#configuration">Configuration</a> ·
+  <a href="#cli-reference">CLI</a> ·
+  <a href="#development">Development</a>
 </p>
 
 ---
@@ -168,7 +170,7 @@ Talk to your agent. It now has claws on every machine you configured.
            └──────┘ └──────┘
 ```
 
-On first connect, Claw deploys a small static binary (`claw-agent`) to the remote host. This binary speaks JSON-RPC over stdin/stdout and handles all tool execution — structured file editing, safe command handling, grep with regex support.
+On first connect, Claw deploys a small static binary (`pincer`) to `~/.claw/pincer` on the remote host. This binary speaks JSON-RPC over stdin/stdout and handles all tool execution — structured file editing, safe command handling, grep with regex support.
 
 Connections are persistent. No reconnecting per command.
 
@@ -186,7 +188,7 @@ These match the tools agents already know from local development (Claude Code's 
 | **claw_bash** | Run a shell command | `claw_bash(host: "prod", command: "docker ps")` |
 | **claw_read** | Read a file (with optional line range) | `claw_read(host: "prod", path: "/var/log/app.log", offset: 0, limit: 100)` |
 | **claw_write** | Create or overwrite a file | `claw_write(host: "staging", path: "/app/config.yaml", content: "...")` |
-| **claw_edit** | Find-and-replace in a file | `claw_edit(host: "staging", path: "/app/config.yaml", old: "port: 80", new: "port: 8080")` |
+| **claw_edit** | Find-and-replace in a file | `claw_edit(host: "staging", path: "/app/config.yaml", old_string: "port: 80", new_string: "port: 8080")` |
 | **claw_grep** | Search file contents with regex | `claw_grep(host: "prod", pattern: "error\|timeout", path: "/var/log", include: "*.log")` |
 | **claw_glob** | Find files by pattern | `claw_glob(host: "prod", pattern: "/app/src/**/*.ts")` |
 | **claw_ls** | List directory contents | `claw_ls(host: "staging", path: "/app")` |
@@ -254,6 +256,67 @@ Commit this to your repo. Your whole team gets the same machine setup, each usin
 - **No persistence** — The remote binary only runs during your session.
 - **Audit log** — Every tool call is logged to `~/.config/claw/logs/`.
 - **Want guardrails?** — For approval workflows and policy enforcement on remote operations, check out [Opsy](https://github.com/opsyhq/opsy).
+
+## CLI Reference
+
+```bash
+# Start the MCP server (stdio transport)
+claw serve
+
+# Import machines from ~/.ssh/config
+claw init --from-ssh
+
+# Add a remote machine
+claw add prod-api --ssh deploy@prod-api.example.com
+
+# Add the local machine
+claw add local --local
+
+# Install into Claude Code (~/.claude/settings.json)
+claw install claude-code
+
+# Install into Cursor (.cursor/mcp.json)
+claw install cursor
+```
+
+## Project Structure
+
+```
+claw/
+├── bin/claw.ts                # CLI entrypoint
+├── src/
+│   ├── cli/                   # CLI commands (serve, init, add, install)
+│   ├── config/                # YAML config loading + SSH config parser
+│   ├── server/                # MCP server, tool schemas, router
+│   ├── tools/                 # Local tool implementations (bash, read, write, edit, grep, glob, ls)
+│   ├── transports/            # Transport layer (local, SSH, connection pool, deployer)
+│   └── logging/               # Audit log
+├── pincer/                    # Go binary deployed to remote hosts
+│   ├── main.go                # JSON-RPC stdin/stdout server
+│   ├── rpc/                   # Request dispatcher
+│   └── tools/                 # Tool implementations in Go
+├── scripts/build-pincer.sh    # Cross-compile pincer for linux/amd64+arm64
+└── pincer-bin/                # Pre-built pincer binaries (included in npm package)
+```
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Type-check without emitting
+npm run typecheck
+
+# Build pincer binaries (requires Go)
+npm run build-pincer
+
+# Watch mode
+npm run dev
+```
 
 ## Roadmap
 
