@@ -25,7 +25,7 @@
 
 AI agents can write code, but they're stuck on one machine. They can't check logs on prod, grep for errors across services, or edit a config on staging.
 
-**Claw is an [MCP server](https://modelcontextprotocol.io) that extends your agent's tools to any remote machine.** 9 tools. Any host you can SSH into. Zero config on the remote.
+**Claw is an [MCP server](https://modelcontextprotocol.io) that extends your agent's tools to any remote machine.** 8 tools. Any host you can SSH into. Zero config on the remote.
 
 ```
 You: "Check why the API is returning 500s on prod, look at the logs, and fix the nginx config"
@@ -110,7 +110,7 @@ npx -y @opsyhq/claw serve
 
 ### 3. Add your machines
 
-The agent can add machines itself via the `claw_add_machine` tool, or you can set them up ahead of time:
+The agent can add machines itself via the `claw_machines` tool, or you can set them up ahead of time:
 
 ```bash
 # Import from your SSH config
@@ -162,12 +162,11 @@ Connections are persistent and pooled. No reconnecting per command.
 
 ## Tools
 
-Claw exposes 9 MCP tools. These match the tools agents already know from local development (Claude Code's Read/Write/Edit/Bash/Grep/Glob/LS) — just extended to remote machines.
+Claw exposes 8 MCP tools. These match the tools agents already know from local development (Claude Code's Read/Write/Edit/Bash/Grep/Glob/LS) — just extended to remote machines.
 
 | Tool | Description |
 |------|-------------|
-| **claw_list_machines** | Discover available machines and their status |
-| **claw_add_machine** | Add a new SSH machine on the fly |
+| **claw_machines** | List, add, remove, and update machines |
 | **claw_bash** | Run a shell command |
 | **claw_read** | Read a file with optional line range |
 | **claw_write** | Create or overwrite a file |

@@ -29,6 +29,19 @@ export class Router {
     }
   }
 
+  removeMachine(name: string): boolean {
+    const idx = this.machines.findIndex((m) => m.name === name);
+    if (idx === -1) return false;
+    this.machines.splice(idx, 1);
+    // Clean up any cached transport
+    const transport = this.transports.get(name);
+    if (transport?.disconnect) {
+      transport.disconnect();
+    }
+    this.transports.delete(name);
+    return true;
+  }
+
   private getTransport(host: string): Transport {
     const existing = this.transports.get(host);
     if (existing) return existing;

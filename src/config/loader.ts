@@ -64,3 +64,11 @@ export function appendMachine(
   config.machines[name] = machine;
   writeGlobalConfig(config);
 }
+
+export function removeMachine(name: string): boolean {
+  const existing = readYamlConfig(GLOBAL_CONFIG_PATH);
+  if (!existing?.machines?.[name]) return false;
+  delete existing.machines[name];
+  writeGlobalConfig(existing);
+  return true;
+}

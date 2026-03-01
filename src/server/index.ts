@@ -10,9 +10,9 @@ import {
   grepSchema,
   globSchema,
   lsSchema,
-  addMachineSchema,
+  machinesSchema,
 } from "./schemas.js";
-import { appendMachine } from "../config/loader.js";
+import { appendMachine, removeMachine } from "../config/loader.js";
 import { auditLog } from "../logging/audit.js";
 
 export function createServer(
@@ -27,35 +27,105 @@ export function createServer(
   });
 
   server.tool(
-    "claw_list_machines",
-    "List all configured machines and their connection status. Call this first to discover available machines.",
-    {},
-    async () => {
-      const machines = router.getMachines();
-      auditLog("local", "claw_list_machines", {});
+    "claw_machines",
+    "Manage machines. Actions: list | add --name --host [--user] [--port] | remove --name | update --name [--host] [--user] [--port]",
+    machinesSchema,
+    async ({ action, name, host, user, port }) => {
+      auditLog("local", "claw_machines", { action, name });
 
-      if (machines.length === 0) {
+      if (action === "list") {
+        const machines = router.getMachines();
+        if (machines.length === 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "No machines configured. Use action 'add' to add one.",
+              },
+            ],
+          };
+        }
+        const machineList = machines.map((m) => ({
+          name: m.name,
+          transport: m.transport,
+          host: m.host ?? "localhost",
+          status: "available" as const,
+        }));
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(machineList, null, 2) },
+          ],
+        };
+      }
+
+      if (!name) {
+        return {
+          content: [{ type: "text" as const, text: "Missing required parameter: name" }],
+          isError: true,
+        };
+      }
+
+      if (action === "add") {
+        if (!host) {
+          return {
+            content: [{ type: "text" as const, text: "Missing required parameter: host" }],
+            isError: true,
+          };
+        }
+        const machine = { name, transport: "ssh" as const, host, user, port };
+        router.addMachine(machine);
+        appendMachine(name, { transport: "ssh", host, user, port });
         return {
           content: [
             {
               type: "text" as const,
-              text: "No machines configured. Use claw_add_machine to add one.",
+              text: `Added machine "${name}" (${user ? user + "@" : ""}${host}${port ? ":" + port : ""})`,
             },
           ],
         };
       }
 
-      const machineList = machines.map((m) => ({
-        name: m.name,
-        transport: m.transport,
-        host: m.host ?? "localhost",
-        status: "available" as const,
-      }));
+      if (action === "remove") {
+        const removed = router.removeMachine(name);
+        if (!removed) {
+          return {
+            content: [{ type: "text" as const, text: `Machine "${name}" not found.` }],
+            isError: true,
+          };
+        }
+        removeMachine(name);
+        return {
+          content: [{ type: "text" as const, text: `Removed machine "${name}".` }],
+        };
+      }
+
+      if (action === "update") {
+        const machines = router.getMachines();
+        const existing = machines.find((m) => m.name === name);
+        if (!existing) {
+          return {
+            content: [{ type: "text" as const, text: `Machine "${name}" not found.` }],
+            isError: true,
+          };
+        }
+        const updated = {
+          ...existing,
+          ...(host !== undefined && { host }),
+          ...(user !== undefined && { user }),
+          ...(port !== undefined && { port }),
+        };
+        router.addMachine(updated);
+        appendMachine(name, { transport: updated.transport, host: updated.host, user: updated.user, port: updated.port });
+        return {
+          content: [
+            { type: "text" as const, text: `Updated machine "${name}".` },
+          ],
+        };
+      }
 
       return {
-        content: [
-          { type: "text" as const, text: JSON.stringify(machineList, null, 2) },
-        ],
+        content: [{ type: "text" as const, text: `Unknown action: ${action}` }],
+        isError: true,
       };
     },
   );
@@ -166,35 +236,6 @@ export function createServer(
       return {
         content: [{ type: "text" as const, text: result.content }],
         isError: result.isError,
-      };
-    },
-  );
-
-  server.tool(
-    "claw_add_machine",
-    "Add an SSH machine to Claw's config. The machine becomes immediately available for use.",
-    addMachineSchema,
-    async ({ name, host, user, port }) => {
-      const machine = {
-        name,
-        transport: "ssh" as const,
-        host,
-        user,
-        port,
-      };
-
-      router.addMachine(machine);
-      appendMachine(name, { transport: "ssh", host, user, port });
-
-      auditLog("local", "claw_add_machine", { name, host });
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Added machine "${name}" (${user ? user + "@" : ""}${host}${port ? ":" + port : ""})`,
-          },
-        ],
       };
     },
   );

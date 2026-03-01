@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-export const listMachinesSchema = {};
-
 export const bashSchema = {
   host: z.string().describe("Machine name to run the command on"),
   command: z.string().describe("Bash command to execute"),
@@ -57,9 +55,18 @@ export const lsSchema = {
   path: z.string().describe("Directory path to list"),
 };
 
-export const addMachineSchema = {
-  name: z.string().describe("Unique name for this machine (e.g. 'prod-api', 'staging')"),
-  host: z.string().describe("SSH hostname or IP address"),
+export const machinesSchema = {
+  action: z
+    .enum(["list", "add", "remove", "update"])
+    .describe("Action to perform"),
+  name: z
+    .string()
+    .optional()
+    .describe("Machine name (required for add/remove/update)"),
+  host: z
+    .string()
+    .optional()
+    .describe("SSH hostname or IP address (required for add)"),
   user: z.string().optional().describe("SSH user (default: current user)"),
   port: z.number().optional().describe("SSH port (default: 22)"),
 };
