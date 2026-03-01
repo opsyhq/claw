@@ -138,8 +138,15 @@ export async function ensurePincer(conn: Client): Promise<string> {
   // Resolve local binary (dev build or download from GitHub Releases)
   const localPath = await resolvePincerBinary(goArch);
 
-  // Kill stale pincer and remove old binary (can't overwrite a running executable on Linux)
-  await execCommand(conn, `pkill -f '${REMOTE_BINARY_REL}' 2>/dev/null; mkdir -p ${remoteHome}/${REMOTE_DIR} && rm -f ${remoteBinaryPath}`);
+  // Kill stale pincer processes (separate exec so pkill doesn't match the shell running our commands)
+  try {
+    await execCommand(conn, `pkill -x pincer 2>/dev/null || true`);
+  } catch {
+    // Ignore — no matching process is fine
+  }
+
+  // Remove old binary (can't overwrite a running executable on Linux) and ensure directory exists
+  await execCommand(conn, `mkdir -p ${remoteHome}/${REMOTE_DIR} && rm -f ${remoteBinaryPath}`);
 
   // Upload binary via SFTP
   const sftp = await getSftp(conn);
