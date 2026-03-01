@@ -138,8 +138,8 @@ export async function ensurePincer(conn: Client): Promise<string> {
   // Resolve local binary (dev build or download from GitHub Releases)
   const localPath = await resolvePincerBinary(goArch);
 
-  // Create remote directory
-  await execCommand(conn, `mkdir -p ${remoteHome}/${REMOTE_DIR}`);
+  // Kill stale pincer and remove old binary (can't overwrite a running executable on Linux)
+  await execCommand(conn, `pkill -f '${REMOTE_BINARY_REL}' 2>/dev/null; mkdir -p ${remoteHome}/${REMOTE_DIR} && rm -f ${remoteBinaryPath}`);
 
   // Upload binary via SFTP
   const sftp = await getSftp(conn);
