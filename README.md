@@ -289,5 +289,6 @@ claw/
 ---
 
 <p align="center">
-  Built by <a href="https://github.com/opsyhq"><strong>OpsyHQ</strong></a> · MIT License
+  Built by <a href="https://github.com/opsyhq"><strong>OpsyHQ</strong></a> · MIT License<br/>
+  Claw icon by <a href="https://game-icons.net">Lorc / Game Icons</a> (CC BY 3.0)
 </p>
