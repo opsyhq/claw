@@ -56,3 +56,10 @@ export const lsSchema = {
   host: z.string().describe("Machine name to list on"),
   path: z.string().describe("Directory path to list"),
 };
+
+export const addMachineSchema = {
+  name: z.string().describe("Unique name for this machine (e.g. 'prod-api', 'staging')"),
+  host: z.string().describe("SSH hostname or IP address"),
+  user: z.string().optional().describe("SSH user (default: current user)"),
+  port: z.number().optional().describe("SSH port (default: 22)"),
+};

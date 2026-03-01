@@ -6,7 +6,7 @@ import os from "node:os";
 const MCP_CONFIG = {
   claw: {
     command: "npx",
-    args: ["@opsyhq/claw", "serve"],
+    args: ["-y", "@opsyhq/claw", "serve"],
   },
 };
 

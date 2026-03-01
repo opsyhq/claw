@@ -10,7 +10,9 @@ import {
   grepSchema,
   globSchema,
   lsSchema,
+  addMachineSchema,
 } from "./schemas.js";
+import { appendMachine } from "../config/loader.js";
 import { auditLog } from "../logging/audit.js";
 
 export function createServer(
@@ -29,14 +31,26 @@ export function createServer(
     "List all configured machines and their connection status. Call this first to discover available machines.",
     {},
     async () => {
-      const machineList = router.getMachines().map((m) => ({
+      const machines = router.getMachines();
+      auditLog("local", "claw_list_machines", {});
+
+      if (machines.length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "No machines configured. Use claw_add_machine to add one.",
+            },
+          ],
+        };
+      }
+
+      const machineList = machines.map((m) => ({
         name: m.name,
         transport: m.transport,
         host: m.host ?? "localhost",
         status: "available" as const,
       }));
-
-      auditLog("local", "claw_list_machines", {});
 
       return {
         content: [
@@ -152,6 +166,35 @@ export function createServer(
       return {
         content: [{ type: "text" as const, text: result.content }],
         isError: result.isError,
+      };
+    },
+  );
+
+  server.tool(
+    "claw_add_machine",
+    "Add an SSH machine to Claw's config. The machine becomes immediately available for use.",
+    addMachineSchema,
+    async ({ name, host, user, port }) => {
+      const machine = {
+        name,
+        transport: "ssh" as const,
+        host,
+        user,
+        port,
+      };
+
+      router.addMachine(machine);
+      appendMachine(name, { transport: "ssh", host, user, port });
+
+      auditLog("local", "claw_add_machine", { name, host });
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Added machine "${name}" (${user ? user + "@" : ""}${host}${port ? ":" + port : ""})`,
+          },
+        ],
       };
     },
   );

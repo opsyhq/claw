@@ -20,6 +20,15 @@ export class Router {
     return this.machines;
   }
 
+  addMachine(machine: Machine): void {
+    const existing = this.machines.find((m) => m.name === machine.name);
+    if (existing) {
+      Object.assign(existing, machine);
+    } else {
+      this.machines.push(machine);
+    }
+  }
+
   private getTransport(host: string): Transport {
     const existing = this.transports.get(host);
     if (existing) return existing;

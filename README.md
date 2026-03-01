@@ -11,6 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@opsyhq/claw"><img src="https://img.shields.io/npm/v/@opsyhq/claw" alt="npm version"></a>
+  <a href="https://github.com/opsyhq/claw/blob/main/LICENSE"><img src="https://img.shields.io/github/license/opsyhq/claw" alt="license"></a>
+</p>
+
+<p align="center">
   <a href="#quickstart">Quickstart</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#tools">Tools</a> ·
@@ -18,6 +23,10 @@
   <a href="#cli-reference">CLI</a> ·
   <a href="#development">Development</a>
 </p>
+
+```bash
+npm install -g @opsyhq/claw
+```
 
 ---
 
@@ -45,12 +54,12 @@ Done. Across machines. Autonomously.
 
 ```bash
 # Import from your SSH config
-npx @opsyhq/claw init --from-ssh
+npx -y @opsyhq/claw init --from-ssh
 
 # Or add manually
-npx @opsyhq/claw add prod-api --ssh user@prod-api.example.com
-npx @opsyhq/claw add staging --ssh user@staging.example.com
-npx @opsyhq/claw add local --local
+npx -y @opsyhq/claw add prod-api --ssh user@prod-api.example.com
+npx -y @opsyhq/claw add staging --ssh user@staging.example.com
+npx -y @opsyhq/claw add local --local
 ```
 
 ### 2. Connect to your agent
@@ -59,7 +68,7 @@ npx @opsyhq/claw add local --local
 <summary><strong>Claude Code</strong></summary>
 
 ```bash
-npx @opsyhq/claw install claude-code
+npx -y @opsyhq/claw install claude-code
 ```
 
 Or add manually to `.claude/settings.json`:
@@ -68,7 +77,7 @@ Or add manually to `.claude/settings.json`:
   "mcpServers": {
     "claw": {
       "command": "npx",
-      "args": ["@opsyhq/claw", "serve"]
+      "args": ["-y", "@opsyhq/claw", "serve"]
     }
   }
 }
@@ -84,7 +93,7 @@ Add to `.cursor/mcp.json`:
   "mcpServers": {
     "claw": {
       "command": "npx",
-      "args": ["@opsyhq/claw", "serve"]
+      "args": ["-y", "@opsyhq/claw", "serve"]
     }
   }
 }
@@ -100,7 +109,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "claw": {
       "command": "npx",
-      "args": ["@opsyhq/claw", "serve"]
+      "args": ["-y", "@opsyhq/claw", "serve"]
     }
   }
 }
@@ -118,7 +127,7 @@ Add to `openclaw.json`:
       {
         "name": "claw",
         "command": "npx",
-        "args": ["@opsyhq/claw", "serve"]
+        "args": ["-y", "@opsyhq/claw", "serve"]
       }
     ]
   }
@@ -130,7 +139,7 @@ Add to `openclaw.json`:
 <summary><strong>Any MCP client</strong></summary>
 
 ```bash
-npx @opsyhq/claw serve
+npx -y @opsyhq/claw serve
 # Starts MCP server on stdio
 ```
 </details>
@@ -149,25 +158,25 @@ Talk to your agent. It now has claws on every machine you configured.
 ## How it works
 
 ```
-┌──────────────────────────────────────────┐
-│  AI Agent (Claude Code, Cursor, etc.)    │
-│       ↓ MCP tool calls                   │
-├──────────────────────────────────────────┤
-│  Claw (runs locally)                     │
-│                                          │
-│  ┌────────────┐  ┌───────────────────┐   │
-│  │ Tool Router │  │ Connection Pool   │   │
-│  └─────┬──────┘  └────────┬──────────┘   │
-│        └──────────┬───────┘              │
-│           ┌───────┴────────┐             │
-│           │ SSH │ │ Local  │             │
-│           └──┬──┘ └───┬───┘             │
-└──────────────┼────────┼─────────────────┘
-               ▼        ▼
-           ┌──────┐ ┌──────┐
-           │ prod │ │ your │
-           │ api  │ │ mac  │
-           └──────┘ └──────┘
+┌─────────────────────────────────────┐
+│  AI Agent (Claude, Cursor, etc.)    │
+│       ↓ MCP tool calls              │
+├─────────────────────────────────────┤
+│  Claw (runs locally)               │
+│                                     │
+│  ┌─────────────┐ ┌───────────────┐  │
+│  │ Tool Router  │ │ Conn Pool     │  │
+│  └──────┬──────┘ └──────┬────────┘  │
+│         └───────┬───────┘           │
+│          ┌──────┴───────┐           │
+│          │ SSH  │ Local  │           │
+│          └──┬───┘───┬───┘           │
+└─────────────┼───────┼──────────────┘
+              ▼       ▼
+          ┌──────┐ ┌──────┐
+          │ prod │ │ your │
+          │ api  │ │ mac  │
+          └──────┘ └──────┘
 ```
 
 On first connect, Claw deploys a small static binary (`pincer`) to `~/.claw/pincer` on the remote host. This binary speaks JSON-RPC over stdin/stdout and handles all tool execution — structured file editing, safe command handling, grep with regex support.
@@ -296,7 +305,7 @@ claw/
 │   ├── rpc/                   # Request dispatcher
 │   └── tools/                 # Tool implementations in Go
 ├── scripts/build-pincer.sh    # Cross-compile pincer for linux/amd64+arm64
-└── pincer-bin/                # Pre-built pincer binaries (included in npm package)
+└── pincer-bin/                # Local dev binaries (production downloads from GitHub Releases)
 ```
 
 ## Development
